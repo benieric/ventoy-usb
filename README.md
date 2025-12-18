@@ -38,7 +38,7 @@ This script will **erase all data** on the selected USB drive. Make sure to back
 Clone this repository:
 
 ```bash
-git clone https://github.com/yourusername/ventoy-usb.git
+git clone https://github.com/benieric/ventoy-usb.git
 cd ventoy-usb
 ```
 
