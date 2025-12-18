@@ -35,6 +35,13 @@ This script will **erase all data** on the selected USB drive. Make sure to back
 - `sudo` access for installing Ventoy
 - Internet connection for downloading Ventoy
 
+Clone this repository:
+
+```bash
+git clone https://github.com/yourusername/ventoy-usb.git
+cd ventoy-usb
+```
+
 ## Quick Start
 
 Run the main quick start script and choose your action:

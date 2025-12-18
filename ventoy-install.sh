@@ -2,7 +2,7 @@
 set -euo pipefail
 echo "🚀 Ventoy USB Installer Script"
 
-# Check for version argument
+# Check for version argument or ask interactively
 if [[ $# -gt 0 ]]; then
   VENTOY_VERSION="$1"
   VENTOY_VERSION=${VENTOY_VERSION#v}  # Remove leading 'v' if present
@@ -15,6 +15,14 @@ else
   if [[ -z "$VENTOY_VERSION" ]]; then
     echo "❌ Failed to retrieve Ventoy version. Check your internet connection."
     exit 1
+  fi
+
+  echo "Latest version: $VENTOY_VERSION"
+  read -rp "Press Enter to use latest, or enter a specific version: " USER_VERSION
+  if [[ -n "$USER_VERSION" ]]; then
+    VENTOY_VERSION="$USER_VERSION"
+    VENTOY_VERSION=${VENTOY_VERSION#v}
+    echo "Using specified version: $VENTOY_VERSION"
   fi
 fi
 
