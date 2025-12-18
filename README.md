@@ -35,39 +35,44 @@ This script will **erase all data** on the selected USB drive. Make sure to back
 - `sudo` access for installing Ventoy
 - Internet connection for downloading Ventoy
 
-## Usage
+## Quick Start
 
-1. Make the script executable:
-   ```bash
-   chmod +x ventoy-setup.sh
-   ```
+Run the main quick start script and choose your action:
 
-2. Run the script (optionally specify a Ventoy version):
+```bash
+./ventoy.sh
+```
+
+This will prompt you to either setup a new Ventoy USB or copy ISOs to an existing Ventoy USB.
+
+## Ventoy USB Setup
+
+1. Run the ventoy USB setup script (optionally specify a Ventoy version):
    ```bash
-   ./ventoy-setup.sh [version]
+   ./ventoy-install.sh [version]
    ```
    Examples:
-   - `./ventoy-setup.sh` (uses latest version)
-   - `./ventoy-setup.sh 1.0.95` (uses specific version)
+   - `./ventoy-install.sh` (uses latest version)
+   - `./ventoy-install.sh 1.0.95` (uses specific version)
 
-3. Follow the interactive prompts:
+2. Follow the interactive prompts:
    - Select the USB device (e.g., `/dev/sdb`)
    - Confirm the operation (type "YES")
    - Optionally download ISO files from URLs
-   - Optionally provide a local directory with additional ISO files
+   - Optionally provide a local directory with ISO files (e.g., `./isos`)
 
-## Add ISO Files
+## Add ISO Files to Ventoy
 
-Use the `ventoy-copy-isos.sh` script to add more ISO files to an existing Ventoy USB:
+Use the `ventoy-add-isos.sh` script to add more ISO files to an existing Ventoy USB:
 
 ```bash
-./ventoy-copy-isos.sh /mnt/ventoy /path/to/isos
+./ventoy-add-isos.sh /mnt/ventoy ./isos
 ```
 
 Or run it interactively:
 
 ```bash
-./ventoy-copy-isos.sh
+./ventoy-add-isos.sh
 ```
 
 This script can be reused anytime to add ISOs without reinstalling Ventoy.
@@ -97,7 +102,7 @@ Once setup is complete, your USB drive is ready to boot multiple operating syste
 
 **Tips**:
 - If Ventoy menu doesn't appear, ensure Secure Boot is disabled in UEFI (for some systems).
-- You can add/remove ISOs anytime using `ventoy-copy-isos.sh` without reinstalling Ventoy.
+- You can add/remove ISOs anytime using `ventoy-add-isos.sh` without reinstalling Ventoy.
 - The USB remains bootable until you reformat it manually.
 
 ## License

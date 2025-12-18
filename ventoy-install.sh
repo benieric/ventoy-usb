@@ -5,10 +5,12 @@ echo "🚀 Ventoy USB Installer Script"
 # Check for version argument
 if [[ $# -gt 0 ]]; then
   VENTOY_VERSION="$1"
+  VENTOY_VERSION=${VENTOY_VERSION#v}  # Remove leading 'v' if present
   echo "Using specified Ventoy version: $VENTOY_VERSION"
 else
   echo "Fetching latest Ventoy version..."
   VENTOY_VERSION=$(curl -s https://api.github.com/repos/ventoy/Ventoy/releases/latest | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
+  VENTOY_VERSION=${VENTOY_VERSION#v}  # Remove leading 'v' if present
 
   if [[ -z "$VENTOY_VERSION" ]]; then
     echo "❌ Failed to retrieve Ventoy version. Check your internet connection."
@@ -16,13 +18,20 @@ else
   fi
 fi
 
-VENTOY_URL="https://github.com/ventoy/Ventoy/releases/download/$VENTOY_VERSION/ventoy-$VENTOY_VERSION-linux.tar.gz"
+VENTOY_URL="https://github.com/ventoy/Ventoy/releases/download/v$VENTOY_VERSION/ventoy-$VENTOY_VERSION-linux.tar.gz"
 
 echo "📥 Downloading Ventoy $VENTOY_VERSION..."
 curl -L -o ventoy.tar.gz "$VENTOY_URL"
 
 if [[ ! -f ventoy.tar.gz ]] || [[ ! -s ventoy.tar.gz ]]; then
   echo "❌ Download failed. Check your internet connection or try again later."
+  exit 1
+fi
+
+# Verify the downloaded file is a valid tar.gz
+if ! tar -tzf ventoy.tar.gz >/dev/null 2>&1; then
+  echo "❌ Downloaded file is not a valid tar.gz archive. The Ventoy version or URL may be incorrect."
+  echo "URL attempted: $VENTOY_URL"
   exit 1
 fi
 
@@ -36,7 +45,13 @@ fi
 
 cd "ventoy-$VENTOY_VERSION"
 
+# Allow root to write to the directory
+sudo chmod -R 755 .
+
 echo "🔍 Detecting removable devices..."
+# Refresh block devices
+sudo udevadm trigger --subsystem-match=block --action=change
+sleep 2
 echo
 
 lsblk -o NAME,TRAN,SIZE,MODEL,MOUNTPOINT | grep -E "usb|NAME"
@@ -47,6 +62,13 @@ read -rp "Enter USB device (e.g. /dev/sdb): " DEVICE
 if [[ ! -b "$DEVICE" ]]; then
   echo "❌ $DEVICE is not a valid block device"
   exit 1
+fi
+
+# Check device size
+DEVICE_SIZE=$(lsblk -o SIZE -n "$DEVICE" | head -1)
+if [[ "$DEVICE_SIZE" == "0B" ]]; then
+  echo "⚠️  Warning: Device size reported as 0B. This may indicate the device is not ready or faulty."
+  echo "Actual size may be different. Proceed with caution."
 fi
 
 if ! lsblk -o TRAN "$DEVICE" | tail -n +2 | grep -q usb; then
@@ -79,36 +101,56 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
 fi
 
 echo
-echo "🚀 Installing Ventoy on $DEVICE..."
-sudo ./Ventoy2Disk.sh -i "$DEVICE"
+echo "🚀 Installing Ventoy on $DEVICE, this may take a few minutes ..."
+# Unmount any existing partitions on the device
+for part in $(lsblk -o NAME "$DEVICE" | tail -n +2 | sed 's/[^a-zA-Z0-9]//g'); do
+  sudo umount "/dev/$part" 2>/dev/null || true
+done
+sudo ./Ventoy2Disk.sh -I "$DEVICE"
 
 echo "✅ Ventoy installed successfully."
+
+# Verify device is still available
+if [[ ! -b "$DEVICE" ]]; then
+  echo "❌ Device $DEVICE is no longer available after installation"
+  echo "Try unplugging and re-plugging the USB, then run the script again."
+  echo "Alternatively, check 'lsblk' for a new device name."
+  exit 1
+fi
+
+# Re-read partition table
+sudo partprobe "$DEVICE"
 
 sleep 3
 
 VENTOY_MOUNT=$(lsblk -o LABEL,MOUNTPOINT | awk '$1=="Ventoy"{print $2}')
 
 if [[ -z "$VENTOY_MOUNT" ]]; then
-  echo "❌ Could not locate Ventoy mount point"
-  exit 1
+  echo "Ventoy partition not auto-mounted. Attempting to mount manually..."
+  VENTOY_PART=$(lsblk -o NAME,LABEL --noheadings | awk '$2=="Ventoy"{print $1}' | sed 's/[^a-zA-Z0-9]*//g' | head -1)
+  if [[ -n "$VENTOY_PART" ]]; then
+    sudo mkdir -p /mnt/ventoy
+    sudo mount "/dev/$VENTOY_PART" /mnt/ventoy
+    VENTOY_MOUNT=/mnt/ventoy
+    echo "✅ Mounted Ventoy at $VENTOY_MOUNT"
+  else
+    echo "❌ Could not find Ventoy partition to mount"
+    exit 1
+  fi
 fi
 
 echo "📂 Ventoy mounted at: $VENTOY_MOUNT"
 
+cd ..
 if [[ -n "${TEMP_ISO_DIR:-}" ]]; then
-  ./ventoy-copy-isos.sh "$VENTOY_MOUNT" "$TEMP_ISO_DIR"
+  ./ventoy-add-isos.sh "$VENTOY_MOUNT" "$TEMP_ISO_DIR"
   rm -rf "$TEMP_ISO_DIR"
 else
   echo
   read -rp "Optional: directory containing ISO files (leave empty to skip): " ISO_DIR
 
   if [[ -n "$ISO_DIR" ]]; then
-    if [[ ! -d "$ISO_DIR" ]]; then
-      echo "❌ Directory does not exist"
-      exit 1
-    fi
-
-    ./ventoy-copy-isos.sh "$VENTOY_MOUNT" "$ISO_DIR"
+    ./ventoy-add-isos.sh "$VENTOY_MOUNT" "$ISO_DIR"
   fi
 fi
 
@@ -120,5 +162,4 @@ echo "🎉 Ventoy USB is ready!"
 echo "➡️  Boot from this USB and select an ISO to install."
 
 # Cleanup
-cd ..
 rm -rf "ventoy-$VENTOY_VERSION" ventoy.tar.gz
