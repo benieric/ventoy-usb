@@ -108,7 +108,7 @@ Once setup is complete, your USB drive is ready to boot multiple operating syste
    - For Windows/Linux installs, select the USB as the installation media when prompted.
 
 **Tips**:
-- If Ventoy menu doesn't appear, ensure Secure Boot is disabled in UEFI (for some systems).
+- If Ventoy menu doesn't appear and Secure Boot is enabled, follow these steps (https://www.ventoy.net/en/doc_secure.html) to enroll key/hash.
 - You can add/remove ISOs anytime using `ventoy-add-isos.sh` without reinstalling Ventoy.
 - The USB remains bootable until you reformat it manually.
 
